@@ -1,5 +1,3 @@
-//export type PathPartType = 'function' | 'object' | 'string' | 'number';
-
 export enum PathPartType {
   function = 'function',
   object = 'object',

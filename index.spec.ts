@@ -171,7 +171,7 @@ describe('proxy', () => {
         expect(result).toBeInstanceOf(Uint16Array)
     });
 
-    it.only('should consider typed arrays and buffers as literals', async () => {
+    it('should consider typed arrays and buffers as literals', async () => {
         const obj = {
             nested: {
                 fn: async () => ({
