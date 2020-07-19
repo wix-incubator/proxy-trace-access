@@ -7,3 +7,11 @@ install:
 script:
 - yarn build
 - yarn test
+deploy:
+  provider: npm
+  email: yury@nix.co.il
+  api_key:
+    secure: PaqReFGyMl1n3rpPVFvMcjabYi91Qr+PvX7W/wR8h5JHpFB3/OYpQIHDkGNjhcYYDxhWIPOzAp2v0LnTAZy2+0gNE/80O6yPx/1HB6OmfjjHoGOqKq4tmtlj9XgC2OB4ryNpKhS96BkX9VAtkRbA0RziFvPkWjLvrftEFYE4BvDk2aZvHCjY9H2GgIocpoWlqJLzX3H0RcleOUfhEM077K/ESGHmqXD3mKn8JFWEeGlPcehrc971ta0Gp4849WU6HA4Vi+6bNSdfCfxaNxRn2WrIfRL3POqBtXcF3l3NWWv1s77+H5d96hRtRRiSLdRMFo1wNr5kIpygkhhYIHV3vmceV47TNFezyYqYujUgHnmSb35Bbj5iZqfs8KrZ/syrlphqz2YI9Q/fkNs+HBAUJLH4mMKZctaspUxD40pS83q/JyMnmMO6PsfF7DxpxsyHeCgtcf5CUhvfWKCDN1b5DeuecO70VVZjexx+oGO5xnIj1HOvnBe++hMF8f9PnOLB9vwmDppvhF8v1ssW2aZYSTG4091V8oV0kZRLddot9hpWIr3N3mv9DfxMVCh9KVt9/IV2Yfa5wjzbOhGvYrG5tfyGQKf5apB3BQz2LAs/hRbGY8FpM9BBu9cREX3yCFRRu/rZz1yWvJyUHLMK2HfHOZZNmGNQamgUZRnKyen5MLU=
+  on:
+    repo: wix-incubator/proxy-trace-access
+  skip_cleanup: 'true'
