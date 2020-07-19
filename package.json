@@ -1,14 +1,19 @@
 {
-  "name": "proxy-obj",
+  "name": "proxy-trace-access",
   "version": "1.0.0",
+  "main": "dist/index.js",
   "description": "",
   "scripts": {
     "build": "tsc",
     "prepare-deploy": "../../scripts/prepare-deploy.sh",
     "test": "jest"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Yury Michurin <yurym@wix.com>",
+  "license": "MIT",
+  "repository": {
+    "url":"https://github.com/wix-incubator/proxy-trace-access",
+    "type": "git"
+  },
   "devDependencies": {
     "@types/jest": "^26.0.4",
     "jest": "^26.1.0",
