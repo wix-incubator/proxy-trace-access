@@ -98,12 +98,10 @@ export function tracePropAccess(
                   result &&
                   !isDataObject(result)
                 ) {
-                  console.log('trapping!', isDataObject(result), result);
                   return tracePropAccess(result, actualOptions, newPaths);
                 }
 
                 newPaths.pop();
-                console.log('blat', newPaths, result);
                 actualOptions.callback(newPaths, result);
                 return result;
               });
