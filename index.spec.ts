@@ -92,12 +92,13 @@ describe('proxy', () => {
     });
 
     it('should not follow if predicate returns false', async () => {
+        const returnObj = {
+            'hello': 'world'
+        };
         const obj = {
             nested: {
                 _fn: async () => {
-                    return {
-                        'hello': 'world'
-                    };
+                    return returnObj
                 }
             }
         };
@@ -110,8 +111,7 @@ describe('proxy', () => {
     });
 
     it('should not follow non existant', async () => {
-        const obj = {
-        };
+        const obj = {};
 
         const mockFn = jest.fn();
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
@@ -120,20 +120,18 @@ describe('proxy', () => {
         expect(mockFn).not.toBeCalled();
     });
 
-    it('async function returns object', async () => {
+    it('should work with async function returns object', async () => {
+        const firstReturnObject = {
+            'hello': 'world'
+        };
+
+        const secondReturnObject = {
+            'hello': 'this is dog'
+        };
         const obj = {
             nested: {
-                fn1: async () => {
-                    return {
-                        'hello': 'world'
-                    };
-                },
-                fn2: async () => {
-                    return {
-                        'hello': 'this is dog'
-                    };
-                }
-
+                fn1: async () => firstReturnObject,
+                fn2: async () => secondReturnObject
             }
         };
 
@@ -142,11 +140,21 @@ describe('proxy', () => {
 
         expect((await proxiedObj.nested.fn1('someArg')).hello).toBe('world');
         expect((await proxiedObj.nested.fn2()).hello).toBe('this is dog');
+
         expect(mockFn).nthCalledWith(1, [
+            [{key: 'nested', type: 'object'}, {key: 'fn1', type: 'function', callArgs: ['someArg'] }]
+        ], firstReturnObject);
+
+        expect(mockFn).nthCalledWith(2, [
             [{key: 'nested', type: 'object'}, {key: 'fn1', type: 'function', callArgs: ['someArg'] }],
             [{key: 'hello', type: 'string'}]
         ], 'world');
-        expect(mockFn).nthCalledWith(2, [
+
+        expect(mockFn).nthCalledWith(3, [
+            [{key: 'nested', type: 'object'}, {key: 'fn2', type: 'function', callArgs: [] }]
+        ], secondReturnObject);
+
+        expect(mockFn).nthCalledWith(4, [
             [{key: 'nested', type: 'object'}, {key: 'fn2', type: 'function', callArgs: [] }],
             [{key: 'hello', type: 'string'}]
         ], 'this is dog');
@@ -188,5 +196,67 @@ describe('proxy', () => {
         expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object'}, {key: 'fn', type: 'function', callArgs: ['someArg'] }], [{key: 'hello', type: 'object'}]], new Uint16Array([0x30]));
         expect(typeof result).toBe('object');
         expect(result).toBeInstanceOf(Uint16Array)
+    });
+
+
+    it('should handle promises', async () => {
+        const obj = {
+            goto: function() {
+                return new Promise((resolve) => setTimeout(() => resolve('hello'), 1))
+            }
+        };
+
+
+        const mockFn = jest.fn();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn });
+
+        const result = (await proxiedObj.goto('http://yury.com'));
+        expect(mockFn).toBeCalledWith([[{key: 'goto', type: 'function', callArgs: ['http://yury.com'] }]], 'hello');
+        expect(result).toBe('hello');
+    });
+
+    it('should handle promises that return complex object', async () => {
+        const obj = {
+            goto: function() {
+                return new Promise((resolve) => setTimeout(() => resolve({
+                    name: 'yury',
+                    fn: () => 'hello',
+                }), 1))
+            }
+        };
+
+
+        const mockFn = jest.fn();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn });
+
+        const result = (await proxiedObj.goto('http://yury.com'));
+        const name = result.name;
+        const fnResult = result.fn();
+
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}],[{"key":"name","type":"string"}]], "yury");
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}],[{"key":"fn","type":"function","callArgs":[]}]], "hello");
+        expect(name).toBe('yury');
+        expect(fnResult).toBe('hello');
+    });
+
+
+    it('should handle a function that retuns a promise with result object without subsequent calls on the objects', async () => {
+        const resultObject = {
+            name: 'yury',
+            fn: () => 'hello',
+        };
+        const obj = {
+            goto: function() {
+                return new Promise((resolve) => setTimeout(() => resolve(resultObject), 1))
+            }
+        };
+
+
+        const mockFn = jest.fn();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn });
+
+        await (proxiedObj.goto('http://yury.com'));
+
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], resultObject);
     });
 });

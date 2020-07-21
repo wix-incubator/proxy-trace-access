@@ -45,9 +45,13 @@ export function tracePropAccess(
       const reflectedProp = Reflect.get(target, propKey);
 
       if (
-        !(propKey in target) ||
+        !(propKey in target) /*&& propKey !== 'then'*/ ||
         !actualOptions.shouldFollow(target, propKey)
       ) {
+        const pathsSoFar = paths.slice(0, -1);
+        if (pathsSoFar.length > 0) {
+          actualOptions.callback(pathsSoFar, target);
+        }
         return reflectedProp;
       }
       const workingPaths = paths.map(pathArr => [...pathArr]);
@@ -85,7 +89,13 @@ export function tracePropAccess(
             //@ts-ignore
             const fnResult = reflectedProp.apply(target, args);
 
+            const finishFunctionTracing = (functionResult: any) => {
+              newPaths.pop();
+              actualOptions.callback(newPaths, functionResult);
+            };
+
             if (typeof fnResult !== 'object' || !fnResult) {
+              finishFunctionTracing(fnResult);
               return fnResult;
             }
 
@@ -99,8 +109,7 @@ export function tracePropAccess(
                   return tracePropAccess(result, actualOptions, newPaths);
                 }
 
-                newPaths.pop();
-                actualOptions.callback(newPaths, result);
+                finishFunctionTracing(result);
                 return result;
               });
             }
