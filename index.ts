@@ -100,7 +100,10 @@ export function tracePropAccess(
             }
 
             if (typeof fnResult.then === 'function') {
-              return fnResult.then((result: any) => {
+              return fnResult.catch((error: Error) => {
+                finishFunctionTracing(error);
+                return Promise.reject(error);
+              }).then((result: any) => {
                 if (
                   typeof result === 'object' &&
                   result &&

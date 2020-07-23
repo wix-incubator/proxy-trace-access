@@ -259,4 +259,44 @@ describe('proxy', () => {
 
         expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], resultObject);
     });
+
+
+    it('should handle a function that retuns a rejected promise with result object without subsequent calls on the objects', async () => {
+        const errorObject = new Error('Bad error!');
+        const obj = {
+            goto: function() {
+                return new Promise((reject) => setTimeout(() => reject(errorObject), 1))
+            }
+        };
+
+
+        const mockFn = jest.fn();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn });
+
+        try {
+            await (proxiedObj.goto('http://yury.com'));
+        } catch {
+        }
+
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], errorObject);
+    });
+
+    it('should handle a function that retuns a rejected promise with result object without subsequent calls on the objects', async () => {
+        const errorObject = new Error('Bad error!');
+        const obj = {
+            goto: async function() {
+                throw errorObject;
+            }
+        };
+
+        const mockFn = jest.fn();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn });
+
+        try {
+            await (proxiedObj.goto('http://yury.com'));
+        } catch {
+        }
+
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], errorObject);
+    });
 });
