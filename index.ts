@@ -24,6 +24,7 @@ export type PathPart = BasePathPart | FunctionPathPart;
 
 export interface TracePropAccessOptions {
   callback?(paths: PathPart[][], result: any): void;
+  asyncResultSideEffect?(paths: PathPart[][], error?: Error): Promise<void>;
   shouldFollow?(target: any, propKey: any): boolean;
 }
 
@@ -34,6 +35,7 @@ export function tracePropAccess(
   obj: any,
   options: TracePropAccessOptions,
   paths: PathPart[][] = [[]],
+  thenOverHeadCount = 0,
 ): any {
   const actualOptions = {
     callback: () => {},
@@ -43,6 +45,11 @@ export function tracePropAccess(
   return new Proxy(obj, {
     get(target: any, propKey: any) {
       const reflectedProp = Reflect.get(target, propKey);
+
+      if (propKey === 'then' && thenOverHeadCount > 0) {
+        thenOverHeadCount--;
+        return reflectedProp;
+      }
 
       if (
         !(propKey in target) /*&& propKey !== 'then'*/ ||
@@ -100,18 +107,26 @@ export function tracePropAccess(
             }
 
             if (typeof fnResult.then === 'function') {
-              return fnResult.catch((error: Error) => {
+              const waitForSideEffect = async (paths: PathPart[][], error?: Error) => {
+                if (typeof actualOptions.asyncResultSideEffect === 'function') {
+                  await actualOptions.asyncResultSideEffect(paths, error);
+                }
+              }
+              return fnResult.catch(async (error: Error) => {
+                await waitForSideEffect(newPaths, error);
                 finishFunctionTracing(error);
                 return Promise.reject(error);
-              }).then((result: any) => {
+              }).then(async (result: any) => {
                 if (
                   typeof result === 'object' &&
                   result &&
                   !isDataObject(result)
                 ) {
-                  return tracePropAccess(result, actualOptions, newPaths);
+                  await waitForSideEffect(newPaths);
+                  return tracePropAccess(result, actualOptions, newPaths, 1);
                 }
 
+                await waitForSideEffect(newPaths);
                 finishFunctionTracing(result);
                 return result;
               });

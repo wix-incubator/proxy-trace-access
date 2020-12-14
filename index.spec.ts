@@ -299,4 +299,54 @@ describe('proxy', () => {
 
         expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], errorObject);
     });
+
+    it('should call and wait for asyncResultSideEffect', async () => {
+        const resultObject = {
+            name: 'yury',
+            fn: async () => 'hello',
+        };
+        const obj = {
+            eval: function() {
+                return new Promise((resolve) => setTimeout(() => resolve(resultObject), 1))
+            }
+        };
+
+
+        const mockFn = jest.fn();
+
+        const createSideEffect = () => {
+            let resolveSideEffect: Function = () => void 0;
+            const promise = new Promise((resolve) => {
+                resolveSideEffect = resolve;
+            });
+            
+            const asyncResultSideEffect = jest.fn(async () => {
+                await promise;
+            });
+
+            return {
+                resolveSideEffect,
+                asyncResultSideEffect,
+                promise,
+            }
+        }
+        const { resolveSideEffect, asyncResultSideEffect } = createSideEffect();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn, asyncResultSideEffect });
+
+
+        const resultPromise = proxiedObj.eval('#someid');
+
+        // Wait for promises to flush
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(asyncResultSideEffect).toBeCalled();
+        expect(mockFn).not.toBeCalled();
+
+        resolveSideEffect();
+        
+        await resultPromise;
+
+        expect(mockFn).toHaveBeenCalledTimes(1);
+        expect(mockFn).toBeCalledWith([[{"key":"eval","type":"function","callArgs":["#someid"]}]], resultObject);
+    });
 });
