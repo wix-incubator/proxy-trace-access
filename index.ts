@@ -24,8 +24,8 @@ export type PathPart = BasePathPart | FunctionPathPart;
 
 export interface TracePropAccessOptions {
   callback?(paths: PathPart[][], result: any): void;
-  asyncResultSideEffect?(paths: PathPart[][], error?: Error): Promise<void>;
   shouldFollow?(target: any, propKey: any): boolean;
+  maybeCreateAsyncTrap?(target: any, propKey: any, paths: PathPart[][]): Promise<void> | null;
 }
 
 const isDataObject = (obj: any) =>
@@ -35,7 +35,6 @@ export function tracePropAccess(
   obj: any,
   options: TracePropAccessOptions,
   paths: PathPart[][] = [[]],
-  thenOverHeadCount = 0,
 ): any {
   const actualOptions = {
     callback: () => {},
@@ -45,11 +44,6 @@ export function tracePropAccess(
   return new Proxy(obj, {
     get(target: any, propKey: any) {
       const reflectedProp = Reflect.get(target, propKey);
-
-      if (propKey === 'then' && thenOverHeadCount > 0) {
-        thenOverHeadCount--;
-        return reflectedProp;
-      }
 
       if (
         !(propKey in target) /*&& propKey !== 'then'*/ ||
@@ -93,9 +87,10 @@ export function tracePropAccess(
               callArgs: args,
             });
             const newPaths = [...workingPaths, []];
-            //@ts-ignore
-            const fnResult = reflectedProp.apply(target, args);
+            const trapAsyncMethodPromise = actualOptions.maybeCreateAsyncTrap ? actualOptions.maybeCreateAsyncTrap(target, propKey, newPaths) : null;
 
+            const fnResult = trapAsyncMethodPromise ? trapAsyncMethodPromise.then(() => reflectedProp.apply(target, args), () => reflectedProp.apply(target, args)) : reflectedProp.apply(target, args);
+            
             const finishFunctionTracing = (functionResult: any) => {
               newPaths.pop();
               actualOptions.callback(newPaths, functionResult);
@@ -107,26 +102,18 @@ export function tracePropAccess(
             }
 
             if (typeof fnResult.then === 'function') {
-              const waitForSideEffect = async (paths: PathPart[][], error?: Error) => {
-                if (typeof actualOptions.asyncResultSideEffect === 'function') {
-                  await actualOptions.asyncResultSideEffect(paths, error);
-                }
-              }
-              return fnResult.catch(async (error: Error) => {
-                await waitForSideEffect(newPaths, error);
+              return fnResult.catch((error: Error) => {
                 finishFunctionTracing(error);
                 return Promise.reject(error);
-              }).then(async (result: any) => {
+              }).then((result: any) => {
                 if (
                   typeof result === 'object' &&
                   result &&
                   !isDataObject(result)
                 ) {
-                  await waitForSideEffect(newPaths);
-                  return tracePropAccess(result, actualOptions, newPaths, 1);
+                  return tracePropAccess(result, actualOptions, newPaths);
                 }
 
-                await waitForSideEffect(newPaths);
                 finishFunctionTracing(result);
                 return result;
               });
