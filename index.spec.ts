@@ -299,4 +299,104 @@ describe('proxy', () => {
 
         expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], errorObject);
     });
+
+    it('should trap async function call when instructed', async () => {
+        const resultObject = {
+            name: 'yury',
+            fn: async () => 'hello',
+        };
+        const obj = {
+            eval: function() {
+                return new Promise((resolve) => setTimeout(() => resolve(resultObject), 1))
+            }
+        };
+
+
+        const mockFn = jest.fn();
+
+        const createMaybeCreateAsyncTrap = () => {
+            let resolveTrap: Function = () => void 0;
+            const promise = new Promise((resolve) => {
+                resolveTrap = resolve;
+            });
+
+            const maybeCreateAsyncTrap = jest.fn(async () => {
+                await promise;
+            });
+
+            return {
+                resolveTrap,
+                maybeCreateAsyncTrap,
+                promise,
+            }
+        }
+        const { resolveTrap, maybeCreateAsyncTrap } = createMaybeCreateAsyncTrap();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn, maybeCreateAsyncTrap });
+
+
+        const resultPromise = proxiedObj.eval('#someid');
+
+        // Wait for promises to flush
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(maybeCreateAsyncTrap).toBeCalled();
+        expect(mockFn).not.toBeCalled();
+
+        resolveTrap();
+
+        await resultPromise;
+
+        expect(mockFn).toHaveBeenCalledTimes(1);
+        expect(mockFn).toBeCalledWith([[{"key":"eval","type":"function","callArgs":["#someid"]}]], resultObject);
+    });
+
+    it('should trap async function call when instructed even if the function rejects', async () => {
+        const resultObject = {
+            name: 'yury',
+            fn: async () => 'hello',
+        };
+        const obj = {
+            eval: function() {
+                return new Promise((resolve) => setTimeout(() => resolve(resultObject), 1))
+            }
+        };
+
+
+        const mockFn = jest.fn();
+
+        const createMaybeCreateAsyncTrap = () => {
+            let rejectTrap: Function = () => void 0;
+            const promise = new Promise((resolve, reject) => {
+                rejectTrap = reject;
+            });
+
+            const maybeCreateAsyncTrap = jest.fn(async () => {
+                await promise;
+            });
+
+            return {
+                rejectTrap,
+                maybeCreateAsyncTrap,
+                promise,
+            }
+        }
+        const { rejectTrap, maybeCreateAsyncTrap } = createMaybeCreateAsyncTrap();
+        const proxiedObj = tracePropAccess(obj, { callback: mockFn, maybeCreateAsyncTrap });
+
+
+        const resultPromise = proxiedObj.eval('#someid');
+
+        // Wait for promises to flush
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(maybeCreateAsyncTrap).toBeCalled();
+        expect(mockFn).not.toBeCalled();
+
+        rejectTrap();
+
+        await resultPromise;
+
+        expect(mockFn).toHaveBeenCalledTimes(1);
+        expect(mockFn).toBeCalledWith([[{"key":"eval","type":"function","callArgs":["#someid"]}]], resultObject);
+    });
 });

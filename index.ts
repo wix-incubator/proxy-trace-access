@@ -25,6 +25,7 @@ export type PathPart = BasePathPart | FunctionPathPart;
 export interface TracePropAccessOptions {
   callback?(paths: PathPart[][], result: any): void;
   shouldFollow?(target: any, propKey: any): boolean;
+  maybeCreateAsyncTrap?(target: any, propKey: any, paths: PathPart[][]): Promise<void> | null;
 }
 
 const isDataObject = (obj: any) =>
@@ -86,9 +87,10 @@ export function tracePropAccess(
               callArgs: args,
             });
             const newPaths = [...workingPaths, []];
-            //@ts-ignore
-            const fnResult = reflectedProp.apply(target, args);
+            const trapAsyncMethodPromise = actualOptions.maybeCreateAsyncTrap ? actualOptions.maybeCreateAsyncTrap(target, propKey, newPaths) : null;
 
+            const fnResult = trapAsyncMethodPromise ? trapAsyncMethodPromise.then(() => reflectedProp.apply(target, args), () => reflectedProp.apply(target, args)) : reflectedProp.apply(target, args);
+            
             const finishFunctionTracing = (functionResult: any) => {
               newPaths.pop();
               actualOptions.callback(newPaths, functionResult);
