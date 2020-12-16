@@ -1,6 +1,8 @@
 import { tracePropAccess } from './index'
 
 describe('proxy', () => {
+    const stackExpect = expect.stringContaining('at ');
+
     it('get value', () => {
         const obj = {
             'hello': 'world'
@@ -10,7 +12,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         expect(proxiedObj.hello).toBe('world');
-        expect(mockFn).toBeCalledWith([[{key: 'hello', type: 'string'}]], 'world');
+        expect(mockFn).toBeCalledWith([[{key: 'hello', type: 'string', "stackTrace": stackExpect}]], 'world');
     });
 
     it('nested value', () => {
@@ -24,7 +26,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         expect(proxiedObj.nested.value).toBe('hello');
-        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object'}, {key: 'value', type: 'string'}]], 'hello');
+        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object', "stackTrace": stackExpect}, {key: 'value', type: 'string', "stackTrace": stackExpect}]], 'hello');
     });
 
 
@@ -54,7 +56,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         expect(proxiedObj.nested.fn('someArg').hello).toBe('world');
-        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object'}, {key: 'fn', type: 'function', callArgs: ['someArg'] }], [{key: 'hello', type: 'string'}]], 'world');
+        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn', type: 'function', callArgs: ['someArg'], 'stackTrace': stackExpect }], [{key: 'hello', type: 'string', 'stackTrace': stackExpect}]], 'world');
     });
 
     it('async function returns literal', async () => {
@@ -70,7 +72,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         expect(await proxiedObj.nested.fn('someArg')).toBe(5);
-        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object'}, {key: 'fn', type: 'function', callArgs: ['someArg'] }]], 5);
+        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn', type: 'function', callArgs: ['someArg'], 'stackTrace': stackExpect }]], 5);
     });
 
     it('async function returns object', async () => {
@@ -88,7 +90,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         expect((await proxiedObj.nested.fn('someArg')).hello).toBe('world');
-        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object'}, {key: 'fn', type: 'function', callArgs: ['someArg'] }], [{key: 'hello', type: 'string'}]], 'world');
+        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn', type: 'function', callArgs: ['someArg'], 'stackTrace': stackExpect }], [{key: 'hello', type: 'string', 'stackTrace': stackExpect}]], 'world');
     });
 
     it('should not follow if predicate returns false', async () => {
@@ -142,21 +144,21 @@ describe('proxy', () => {
         expect((await proxiedObj.nested.fn2()).hello).toBe('this is dog');
 
         expect(mockFn).nthCalledWith(1, [
-            [{key: 'nested', type: 'object'}, {key: 'fn1', type: 'function', callArgs: ['someArg'] }]
+            [{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn1', type: 'function', callArgs: ['someArg'], 'stackTrace': stackExpect }]
         ], firstReturnObject);
 
         expect(mockFn).nthCalledWith(2, [
-            [{key: 'nested', type: 'object'}, {key: 'fn1', type: 'function', callArgs: ['someArg'] }],
-            [{key: 'hello', type: 'string'}]
+            [{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn1', type: 'function', callArgs: ['someArg'], 'stackTrace': stackExpect }],
+            [{key: 'hello', type: 'string', 'stackTrace': stackExpect}]
         ], 'world');
 
         expect(mockFn).nthCalledWith(3, [
-            [{key: 'nested', type: 'object'}, {key: 'fn2', type: 'function', callArgs: [] }]
+            [{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn2', type: 'function', callArgs: [], 'stackTrace': stackExpect }]
         ], secondReturnObject);
 
         expect(mockFn).nthCalledWith(4, [
-            [{key: 'nested', type: 'object'}, {key: 'fn2', type: 'function', callArgs: [] }],
-            [{key: 'hello', type: 'string'}]
+            [{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn2', type: 'function', callArgs: [], 'stackTrace': stackExpect }],
+            [{key: 'hello', type: 'string', 'stackTrace': stackExpect}]
         ], 'this is dog');
     });
 
@@ -174,7 +176,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         const result = (await proxiedObj.nested.fn('someArg'));
-        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object'}, {key: 'fn', type: 'function', callArgs: ['someArg'] }]], new Uint16Array([0x30]));
+        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn', type: 'function', callArgs: ['someArg'], 'stackTrace': stackExpect }]], new Uint16Array([0x30]));
         expect(typeof result).toBe('object');
         expect(result).toBeInstanceOf(Uint16Array)
     });
@@ -193,7 +195,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         const result = (await proxiedObj.nested.fn('someArg')).hello;
-        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object'}, {key: 'fn', type: 'function', callArgs: ['someArg'] }], [{key: 'hello', type: 'object'}]], new Uint16Array([0x30]));
+        expect(mockFn).toBeCalledWith([[{key: 'nested', type: 'object', 'stackTrace': stackExpect}, {key: 'fn', type: 'function', callArgs: ['someArg'], 'stackTrace': stackExpect }], [{key: 'hello', type: 'object', 'stackTrace': stackExpect}]], new Uint16Array([0x30]));
         expect(typeof result).toBe('object');
         expect(result).toBeInstanceOf(Uint16Array)
     });
@@ -211,7 +213,7 @@ describe('proxy', () => {
         const proxiedObj = tracePropAccess(obj, { callback: mockFn });
 
         const result = (await proxiedObj.goto('http://yury.com'));
-        expect(mockFn).toBeCalledWith([[{key: 'goto', type: 'function', callArgs: ['http://yury.com'] }]], 'hello');
+        expect(mockFn).toBeCalledWith([[{key: 'goto', type: 'function', callArgs: ['http://yury.com'], 'stackTrace': stackExpect }]], 'hello');
         expect(result).toBe('hello');
     });
 
@@ -233,8 +235,9 @@ describe('proxy', () => {
         const name = result.name;
         const fnResult = result.fn();
 
-        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}],[{"key":"name","type":"string"}]], "yury");
-        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}],[{"key":"fn","type":"function","callArgs":[]}]], "hello");
+
+        expect(mockFn).toBeCalledWith([[expect.objectContaining({"key":"goto","type":"function","callArgs":["http://yury.com"],"stackTrace": stackExpect})],[expect.objectContaining({"key":"name","type":"string", "stackTrace": stackExpect})]], "yury");
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"], "stackTrace": stackExpect}],[{"key":"fn","type":"function","callArgs":[], "stackTrace": stackExpect}]], "hello");
         expect(name).toBe('yury');
         expect(fnResult).toBe('hello');
     });
@@ -257,7 +260,7 @@ describe('proxy', () => {
 
         await (proxiedObj.goto('http://yury.com'));
 
-        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], resultObject);
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"], 'stackTrace': stackExpect}]], resultObject);
     });
 
 
@@ -278,7 +281,7 @@ describe('proxy', () => {
         } catch {
         }
 
-        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], errorObject);
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"], 'stackTrace': stackExpect}]], errorObject);
     });
 
     it('should handle a function that retuns a rejected promise with result object without subsequent calls on the objects', async () => {
@@ -297,7 +300,7 @@ describe('proxy', () => {
         } catch {
         }
 
-        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"]}]], errorObject);
+        expect(mockFn).toBeCalledWith([[{"key":"goto","type":"function","callArgs":["http://yury.com"], 'stackTrace': stackExpect}]], errorObject);
     });
 
     it('should trap async function call when instructed', async () => {
@@ -347,7 +350,7 @@ describe('proxy', () => {
         await resultPromise;
 
         expect(mockFn).toHaveBeenCalledTimes(1);
-        expect(mockFn).toBeCalledWith([[{"key":"eval","type":"function","callArgs":["#someid"]}]], resultObject);
+        expect(mockFn).toBeCalledWith([[{"key":"eval","type":"function","callArgs":["#someid"], 'stackTrace': stackExpect}]], resultObject);
     });
 
     it('should trap async function call when instructed even if the function rejects', async () => {
@@ -397,6 +400,6 @@ describe('proxy', () => {
         await resultPromise;
 
         expect(mockFn).toHaveBeenCalledTimes(1);
-        expect(mockFn).toBeCalledWith([[{"key":"eval","type":"function","callArgs":["#someid"]}]], resultObject);
+        expect(mockFn).toBeCalledWith([[{"key":"eval","type":"function","callArgs":["#someid"], 'stackTrace': stackExpect}]], resultObject);
     });
 });
