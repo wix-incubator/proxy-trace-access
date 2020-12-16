@@ -12,15 +12,20 @@ export enum PathPartType {
 export interface BasePathPart {
   key: string;
   type: Exclude<PathPartType, PathPartType.function>;
+  stackTrace: string;
 }
 
 export interface FunctionPathPart {
   key: string;
   type: PathPartType.function;
   callArgs: any[];
+  stackTrace: string;
 }
 
 export type PathPart = BasePathPart | FunctionPathPart;
+
+// cleans the stack and drops last frame (ourselves)
+const cleanStack = (stack: string) => stack.split('\n').map(line => line.trim()).filter(line => line.startsWith('at')).slice(1).join('\n');
 
 export interface TracePropAccessOptions {
   callback?(paths: PathPart[][], result: any): void;
@@ -57,16 +62,21 @@ export function tracePropAccess(
       }
       const workingPaths = paths.map(pathArr => [...pathArr]);
 
+      const stackTraceError = {};
+      Error.captureStackTrace(stackTraceError);
+      const stackTrace = cleanStack((stackTraceError as Error).stack as string);
       const newPathEntry =
         typeof reflectedProp === 'function'
           ? ({
               key: propKey.toString(),
               type: PathPartType.function,
               callArgs: [],
+              stackTrace,
             } as FunctionPathPart)
           : ({
               key: propKey.toString(),
               type: PathPartType[typeof reflectedProp],
+              stackTrace,
             } as BasePathPart);
 
       workingPaths[workingPaths.length - 1] = [
@@ -85,6 +95,7 @@ export function tracePropAccess(
               key: propKey.toString(),
               type: PathPartType.function,
               callArgs: args,
+              stackTrace,
             });
             const newPaths = [...workingPaths, []];
             const trapAsyncMethodPromise = actualOptions.maybeCreateAsyncTrap ? actualOptions.maybeCreateAsyncTrap(target, propKey, newPaths) : null;
